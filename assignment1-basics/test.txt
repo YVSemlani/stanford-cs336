@@ -1,0 +1,4 @@
+# Test corpus for BPE tokenizer training
+test_corpus = """The quick brown fox jumps over the lazy dog. This is a simple sentence that contains all the letters of the English alphabe t. 
+
+<|endoftext|>"""
