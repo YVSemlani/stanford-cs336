@@ -63,7 +63,9 @@ def pretokenize(text, special_tokens):
     """
 
     # regex to escape the special tokens for splitting
-    special_token_escape = "|".join(re.escape(token) for token in special_tokens)
+    # sort the special tokens by length in reverse order to ensure that the longest tokens are matched first
+    # this is because for all overlapping special tokens the larger token is composed of the smaller token thus we must make longer atomic first
+    special_token_escape = "|".join(re.escape(token) for token in sorted(special_tokens, key=len, reverse=True))
 
     # First split by special tokens
     if special_tokens:
@@ -95,13 +97,18 @@ def pretokenize(text, special_tokens):
 
 class Tokenizer:
     def __init__(self, vocab, merges, special_tokens=None):
-        self.special_tokens = special_tokens
+        if special_tokens is None:
+            self.special_tokens = []
+        else:
+            self.special_tokens = special_tokens
         
         self.vocab = vocab
         
-        # add the special tokens to the vocab
-        for idx, token in enumerate(special_tokens):
-            self.vocab[idx + len(vocab)] = bytes(token, 'utf-8')
+        # add the special tokens to the vocab only if they don't already exist
+        for idx, token in enumerate(self.special_tokens):
+            byte_encoded_token = bytes(token, 'utf-8')
+            if byte_encoded_token not in self.vocab.values():
+                self.vocab[len(self.vocab)] = byte_encoded_token
         
         # list to store the merges in learning order
         self.merges = merges
@@ -290,17 +297,32 @@ class Tokenizer:
 
         return token_ids
     
+    def encode_iterable(self, iterable):
+        for word in iterable:
+            for token_id in self.encode(word):
+                yield token_id
+    
     def decode(self, tokens):
-        decoded_text = []
+        concatenated_bytes = b''
         for token_id in tokens:
-            decoded_text.append(self.vocab[token_id].decode('utf-8'))
-        return ''.join(decoded_text)
+            concatenated_bytes += self.vocab[token_id]
+
+        decoded_text = concatenated_bytes.decode('utf-8', errors='replace')
+        return decoded_text
 
     def get_vocab(self):
         return self.vocab
     
     def get_merges(self):
         return self.merges
+
+# creator function
+def from_files(self, vocab_filepath, merges_filepath, special_tokens=None):
+        with open(vocab_filepath, 'rb') as f:
+            vocab = pickle.load(f)
+        with open(merges_filepath, 'rb') as f:
+            merges = pickle.load(f)
+        return Tokenizer(vocab, merges, special_tokens)
 
 if __name__ == "__main__":
     print("Tokenizer interal testing beginning")
