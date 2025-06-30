@@ -10,6 +10,10 @@ import torch
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.linear import Linear
+from cs336_basics.embedding import Embedding
+from cs336_basics.rmsnorm import RMSNorm
+from cs336_basics.ffn import FFN
 
 
 def run_linear(
@@ -31,7 +35,18 @@ def run_linear(
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
 
-    raise NotImplementedError
+    # initialize the model
+    model = Linear(d_in, d_out)
+
+    # create a replacement state dict
+    state_dict = {}
+    state_dict['weight'] = weights
+
+    # replace existing state dict with the new one
+    model.load_state_dict(state_dict)
+    
+    # return model forward pass
+    return model(in_features)
 
 
 def run_embedding(
@@ -53,7 +68,18 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
+    # initialize the model
+    model = Embedding(vocab_size, d_model)
+    
+    # create a replacement state dict
+    state_dict = {}
+    state_dict['embedding'] = weights
+
+    # replace existing state dict with the new one
+    model.load_state_dict(state_dict)
+
+    # return model forward pass
+    return model(token_ids)
 
 
 def run_swiglu(
@@ -79,13 +105,19 @@ def run_swiglu(
         Float[Tensor, "... d_model"]: Output embeddings of the same shape as the input embeddings.
     """
     # Example:
-    # If your state dict keys match, you can use `load_state_dict()`
-    # swiglu.load_state_dict(weights)
-    # You can also manually assign the weights
-    # swiglu.w1.weight.data = w1_weight
-    # swiglu.w2.weight.data = w2_weight
-    # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    swiglu = FFN(d_model)
+
+    # create a replacement state dict
+    state_dict = {}
+    state_dict['W1.weight'] = w1_weight
+    state_dict['W2.weight'] = w2_weight
+    state_dict['W3.weight'] = w3_weight
+
+    # replace existing state dict with the new one
+    swiglu.load_state_dict(state_dict)
+
+    # return model forward pass
+    return swiglu(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -380,7 +412,18 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    # initialize the model
+    model = RMSNorm(d_model, eps)
+    
+    # create a replacement state dict
+    state_dict = {}
+    state_dict['gain'] = weights
+
+    # replace existing state dict with the new one
+    model.load_state_dict(state_dict)
+
+    # return model forward pass
+    return model(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
