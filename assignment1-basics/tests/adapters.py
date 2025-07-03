@@ -14,6 +14,10 @@ from cs336_basics.linear import Linear
 from cs336_basics.embedding import Embedding
 from cs336_basics.rmsnorm import RMSNorm
 from cs336_basics.ffn import FFN
+from cs336_basics.RoPE import RoPE
+from cs336_basics.softmax import Softmax
+from cs336_basics.attention import Attention, MultiHeadAttention
+from cs336_basics.transformer import TransformerBlock, Transformer
 
 
 def run_linear(
@@ -138,7 +142,9 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    attention = Attention()
+
+    return attention(Q, K, V, mask=mask)
 
 
 def run_multihead_self_attention(
@@ -172,7 +178,20 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    attention = MultiHeadAttention(d_model, num_heads)
+
+    # create a replacement state dict
+    state_dict = {}
+    state_dict['Wq.weight'] = q_proj_weight
+    state_dict['Wk.weight'] = k_proj_weight
+    state_dict['Wv.weight'] = v_proj_weight
+    state_dict['Wo.weight'] = o_proj_weight
+
+    # replace existing state dict with the new one
+    attention.load_state_dict(state_dict)
+
+    # return model forward pass
+    return attention(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -212,7 +231,20 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    attention = MultiHeadAttention(d_model, num_heads, max_seq_len=max_seq_len, theta=theta, use_rope=True)
+
+    # create a replacement state dict
+    state_dict = {}
+    state_dict['Wq.weight'] = q_proj_weight
+    state_dict['Wk.weight'] = k_proj_weight
+    state_dict['Wv.weight'] = v_proj_weight
+    state_dict['Wo.weight'] = o_proj_weight
+
+    # replace existing state dict with the new one
+    attention.load_state_dict(state_dict)
+
+    # return model forward pass
+    return attention(in_features, token_positions=token_positions)
 
 
 def run_rope(
@@ -234,7 +266,8 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    pos_encoder = RoPE(theta, d_k, max_seq_len)
+    return pos_encoder(in_query_or_key, token_positions)
 
 
 def run_transformer_block(
@@ -307,7 +340,14 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    transformer_block = TransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta)
+
+    # use the existing state dict to replace the weights
+    transformer_block.load_state_dict(weights)
+
+    # return model forward pass
+    return transformer_block(in_features)
+
 
 
 def run_transformer_lm(
@@ -389,7 +429,9 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    transformer = Transformer(vocab_size, context_length, num_layers, d_model, num_heads, d_ff, theta=rope_theta)
+    transformer.load_state_dict(weights)
+    return transformer(in_indices)
 
 
 def run_rmsnorm(
@@ -476,7 +518,8 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    softmax = Softmax()
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[Tensor, " batch_size"]) -> Float[Tensor, ""]:

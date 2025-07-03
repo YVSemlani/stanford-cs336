@@ -8,13 +8,13 @@ class RMSNorm(nn.Module):
         self.d_model = d_model
         self.eps = eps
 
-        self.gain = nn.Parameter(torch.ones(d_model))
+        self.weight = nn.Parameter(torch.ones(d_model))
 
         # convert to device and dtype if specified
         if dtype is not None:
-            self.gain = self.gain.to(dtype)
+            self.weight = self.weight.to(dtype)
         if device is not None:
-            self.gain = self.gain.to(device)
+            self.weight = self.weight.to(device)
 
     def forward(self, x):
         # upcast to float32 to avoid overflow
@@ -25,7 +25,7 @@ class RMSNorm(nn.Module):
         rms_norm = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
 
         # apply the RMSNorm formula
-        x = self.gain * x / rms_norm
+        x = self.weight * x / rms_norm
 
         # downcast to original dtype
         x = x.to(original_dtype)
@@ -34,7 +34,7 @@ class RMSNorm(nn.Module):
     
 if __name__ == "__main__":
     rmsnorm = RMSNorm(10)
-    print(rmsnorm.gain)
+    print(rmsnorm.weight)
 
     x = torch.randn(10, 10)
     print(rmsnorm(x))

@@ -6,26 +6,28 @@ from einops import rearrange, einsum
 from .linear import Linear
 
 class FFN(nn.Module):
-    def __init__(self, d_model, device=None, dtype=None):
+    def __init__(self, d_model, d_ff=None, device=None, dtype=None):
         super(FFN, self).__init__()
 
         self.d_model = d_model
-        self.d_ff = (8/3) * d_model
-        # round down to the nearest multiple of 64
-        self.d_ff = int(self.d_ff // 64) * 64
-        print(f'd_ff: {self.d_ff}')
+        if d_ff is None:
+            self.d_ff = (8/3) * d_model
+            # round down to the nearest multiple of 64
+            self.d_ff = int(self.d_ff // 64) * 64
+        else:
+            self.d_ff = d_ff
 
         # dims are swapped from the paper b/c the linear layer weights are in the format (out_features, in_features)
         # thus our input to the linear layer is swapped compared to the paper
-        self.W1 = Linear(self.d_model, self.d_ff)
-        self.W2 = Linear(self.d_ff, self.d_model)
-        self.W3 = Linear(self.d_model, self.d_ff)
+        self.w1 = Linear(self.d_model, self.d_ff)
+        self.w2 = Linear(self.d_ff, self.d_model)
+        self.w3 = Linear(self.d_model, self.d_ff)
 
     def forward(self, x):
-        inner_silu = self.W1(x)  # -> (batch_size, num_samples, d_ff)
+        inner_silu = self.w1(x)  # -> (batch_size, num_samples, d_ff)
         silu_out = inner_silu * torch.sigmoid(inner_silu)  # -> (batch_size, num_samples, d_ff)
-        inner_out = silu_out * self.W3(x)  # -> (batch_size, num_samples, d_ff)
-        out = self.W2(inner_out)  # -> (batch_size, num_samples, d_model)
+        inner_out = silu_out * self.w3(x)  # -> (batch_size, num_samples, d_ff)
+        out = self.w2(inner_out)  # -> (batch_size, num_samples, d_model)
 
         return out
     
